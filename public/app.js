@@ -82,6 +82,11 @@ function toast(t){$('toast').textContent=t;$('toast').hidden=false;clearTimeout(
 let localEdits={};try{localEdits=JSON.parse(localStorage.getItem('form-snapshot-edits')||'{}')}catch{}
 for(const x of SNAPSHOT.items)if(localEdits[x.id])Object.assign(x,localEdits[x.id]);
 async function api(url,body){
+ if(['/api/login','/api/sync','/api/publish'].includes(url)){
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  const d=await r.json();if(!r.ok)throw Error(d.error||'요청 실패');return d;
+ }
+
  if(url==='/api/library')return SNAPSHOT;
  if(url==='/api/status')return SNAPSHOT.state;
  if(url==='/api/edit'){let x=SNAPSHOT.items.find(x=>x.id===body.id);if(!x)throw Error('항목 없음');if(body.titles&&JSON.stringify(body.titles)!==JSON.stringify(x.titles)){body={...body,title:body.titles.ko||body.titles.en,titleOrigin:'user'}}Object.assign(x,body);localEdits[x.id]={...(localEdits[x.id]||{}),...body};try{localStorage.setItem('form-snapshot-edits',JSON.stringify(localEdits))}catch{toast('브라우저 저장 실패: 백업 내보내기로 보관하세요.')}return {ok:true}}
@@ -155,5 +160,28 @@ $('shutdown').onclick=async()=>{if(confirm(displayTerm('수집기를 종료할�
 async function poll(){if(polling)return;polling=true;try{const next=await api('/api/status');const changed=next.lastSuccess!==state.lastSuccess||next.added!==state.added;updateState(next);if(changed)await load()}catch{$('syncmessage').textContent='수집기 연결이 끊겼습니다. START.cmd로 실행해 주세요.';$('syncmeta').textContent='연결되지 않은 동안에는 자동 업데이트되지 않습니다.';$('dot').style.background='#b9664c'}finally{polling=false}}
 $('export').onclick=e=>{e.preventDefault();const url=URL.createObjectURL(new Blob([JSON.stringify({items:SNAPSHOT.items},null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='research-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000)};
 load().catch(e=>toast(e.message));
+let collectorRevision=null;
+async function collectorPoll(){
+ try{
+  const r=await fetch('/api/status');if(!r.ok)return;
+  const d=await r.json();if(!d.phase)return;document.documentElement.classList.add('local-collector');
+  if(collectorRevision!==null&&collectorRevision!==d.revision){
+   const fresh=await fetch('/data/snapshot.json');if(!fresh.ok)throw Error('자료 로딩 실패');
+   const next=await fresh.json();for(const x of next.items)if(localEdits[x.id])Object.assign(x,localEdits[x.id]);
+   Object.assign(SNAPSHOT,next);await load();
+  }
+  collectorRevision=d.revision;
+  $('syncmessage').textContent=d.message;
+  $('syncmeta').textContent='PC에서 수집 · 사이트 반영 버튼으로 GitHub 업로드';
+  $('login').disabled=['opening','login','syncing','publishing'].includes(d.phase);
+  $('sync').disabled=d.phase!=='login';
+  $('publish').hidden=false;$('publish').disabled=['opening','login','syncing','publishing'].includes(d.phase);
+ }catch(e){console.warn(e.message)}
+}
+if(['127.0.0.1','localhost'].includes(location.hostname)){
+ $('publish').onclick=async()=>{try{await api('/api/publish',{});await collectorPoll()}catch(e){toast(e.message)}};
+ collectorPoll();setInterval(collectorPoll,2000);
+}
+
 
 })().catch(error=>{console.error(error);document.getElementById("syncmessage").textContent=error.message;});

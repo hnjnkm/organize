@@ -39,12 +39,13 @@ Git에는 코드만 저장합니다. 다른 컴퓨터에서는 원본 HTML 또�
 
 필수: Node.js 24+, Google Chrome, Git for Windows. 저장소 코드를 다운로드/복제한 PC에서 실행하세요. 로그인 세션과 개인 자료는 Git에서 제외됩니다.
 
-1. `SYNC.cmd`를 실행합니다. 최초 실행은 의존성을 설치하고, 로컬 데이터가 없으면 현재 `gh-pages` 자료를 가져옵니다.
-2. 열린 **전용 Chrome 창**에서 직접 Pinterest에 로그인합니다. 다른 Chrome의 로그인 상태를 복사하지 않습니다.
-3. `hnjnkm_/research-gui` 보드가 보이면 명령 창으로 돌아와 Enter를 누릅니다.
-4. 새 핀을 가져옵니다. 기존 핀은 덮어쓰거나 삭제하지 않습니다. 데이터 변경 전 `data/snapshot.json.backup-*`을 남깁니다.
-5. `START.cmd`로 로컬 화면을 확인합니다. 이어 `PUBLISH.cmd`를 실행하면 새 핀을 GitHub Pages에 올립니다. GitHub 쓰기 권한이 있는 계정으로 Git 인증이 필요합니다. 최초 push 시 Git Credential Manager의 로그인 안내를 따르세요. 토큰을 코드에 적지 마세요.
-6. GitHub Pages 배포 완료 후 사이트를 새로고침합니다.
+1. `START.cmd`를 실행합니다. 최초 실행에는 의존성과 기존 게시 자료를 준비한 뒤 로컬 화면을 자동으로 엽니다. 열린 명령 창은 앱이 실행되는 동안 유지하세요.
+2. organize 화면의 **Chrome 로그인**을 누릅니다. 전용 Chrome 창에서 Pinterest에 로그인하고 대상 보드를 엽니다.
+3. organize 화면으로 돌아와 **지금 동기화**를 누릅니다. 명령 창에 Enter를 입력할 필요가 없습니다. 수집 상태가 화면에 표시됩니다.
+4. 완료 후 새 카드를 확인하고 **사이트 반영**을 누르면 GitHub에 업로드합니다. GitHub 쓰기 권한이 있는 계정으로 Git 인증이 필요하며, 최초 인증 때 Git Credential Manager의 안내를 따르세요.
+5. GitHub Pages 배포가 끝나면 공개 사이트를 새로고침합니다.
+
+이 버튼은 PC에서 실행한 로컬 앱에 표시됩니다. GitHub 공개 사이트가 PC의 Chrome을 직접 조작하는 구조는 아닙니다. `SYNC.cmd`와 `PUBLISH.cmd`는 수동 실행용 보조 도구로 남아 있지만 위 흐름에서는 필요 없습니다.
 
 Chrome은 전용 `private/pinterest-chrome`에 로그인 상태를 저장합니다. 이 폴더를 공유하지 마세요. 중단 후 동기화 잠금 오류가 나면 수집기 프로세스가 종료됐는지 먼저 확인한 후 `private/sync.lock`만 삭제합니다.
 

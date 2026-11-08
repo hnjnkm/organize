@@ -239,3 +239,4 @@ header .language-toggle{display:flex;align-items:center;height:32px;margin-top:0
 #preview[data-trim-source-border][hidden]{display:none}
 
 .sync-actions,#shutdown,#package{display:none!important}
+html.local-collector .sync-actions{display:flex!important}

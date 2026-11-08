@@ -11,10 +11,20 @@ const routes = {
   '/menus.js': ['public/menus.js', 'text/javascript; charset=utf-8'],
   '/data/snapshot.json': ['data/snapshot.json', 'application/json; charset=utf-8'],
 };
-function createServer() {
+function createServer(collector = require('./scripts/collector-control.cjs').createCollector()) {
   return http.createServer((req, res) => {
     if (!['127.0.0.1:'+req.socket.localPort, 'localhost:'+req.socket.localPort].includes(req.headers.host)) {
       res.writeHead(403).end('Forbidden'); return;
+    }
+    const apiPath = new URL(req.url, 'http://localhost').pathname;
+    if(apiPath.startsWith('/api/')) {
+      const reply=(code,body)=>{res.writeHead(code,{'Content-Type':'application/json','Cache-Control':'no-store'}).end(JSON.stringify(body));};
+      if(apiPath==='/api/status'&&req.method==='GET'){reply(200,collector.status());return;}
+      if(req.method==='POST'&&['/api/login','/api/sync','/api/publish'].includes(apiPath)){
+        if(req.headers.origin!=='http://'+req.headers.host){reply(403,{error:'Origin rejected'});return;}
+        try {collector[apiPath.slice(5)]();reply(202,{ok:true});}catch(e){reply(409,{error:e.message});}return;
+      }
+      reply(404,{error:'Not found'});return;
     }
     if (!['GET', 'HEAD'].includes(req.method)) {
       res.writeHead(405, {Allow:'GET, HEAD'}).end(); return;
@@ -33,6 +43,6 @@ function createServer() {
   });
 }
 if (require.main === module) {
-  createServer().listen(port, '127.0.0.1', () => console.log(`organize: http://127.0.0.1:${port}`));
+  createServer().listen(port, '127.0.0.1', () => {console.log(`organize: http://127.0.0.1:${port}`);if(process.platform==='win32'&&process.argv.includes('--open'))require('node:child_process').spawn('explorer.exe',[`http://127.0.0.1:${port}`],{stdio:'ignore'});});
 }
 module.exports = {createServer};

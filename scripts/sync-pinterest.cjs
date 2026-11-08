@@ -18,13 +18,14 @@ async function main(){
   }
   fs.mkdirSync(path.dirname(dataFile),{recursive:true});fs.writeFileSync(dataFile,JSON.stringify(d),{flag:'wx'});
  }
+ if(process.argv.includes('--prepare'))return;
  const data=JSON.parse(fs.readFileSync(dataFile,'utf8'));const known=new Set(data.items.map(x=>String(x.id)));
  const {chromium}=require('playwright');
  context=await chromium.launchPersistentContext(path.join(privateDir,'pinterest-chrome'),{channel:'chrome',headless:false,viewport:{width:1440,height:1000}});
  const page=context.pages()[0]||await context.newPage();
  await page.goto('https://www.pinterest.com/hnjnkm_/research-gui/',{waitUntil:'domcontentloaded',timeout:60000});
- console.log('Chrome에서 Pinterest 로그인 후 research-gui 보드를 여세요. 준비되면 이 창에서 Enter를 누르세요.');
- const readline=require('node:readline/promises').createInterface({input:process.stdin,output:process.stdout});await readline.question('Enter: ');readline.close();
+ if(process.send){process.send({type:'login-ready'});await new Promise(resolve=>process.once('message',resolve));}
+ else {const rl=require('node:readline/promises').createInterface({input:process.stdin,output:process.stdout});await rl.question('Chrome에서 보드 로그인 후 Enter: ');rl.close();}
  if(!/^https:\/\/([a-z]+\.)?pinterest\.com\/hnjnkm_\/research-gui\/?(?:[?#]|$)/.test(page.url()))throw Error('대상 보드 페이지가 아닙니다.');
  const found=new Map();let stable=0,rounds=0;
  for(;rounds<60&&stable<6;rounds++){
