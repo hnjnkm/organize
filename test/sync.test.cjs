@@ -1,0 +1,4 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const {mergeNew,pinId,allowedMedia}=require('../scripts/sync-core.cjs');
+test('preserves edited existing pins and adds only unique new pins',()=>{const old={id:'1',notes:'my notes',favorite:true,title:'edited'};const result=mergeNew([old],[{id:'1',title:'remote'},{id:'2'},{id:'2'}]);assert.equal(result.added,1);assert.equal(result.items[1],old);assert.equal(result.items.length,2)});
+test('never deletes pins absent from board',()=>{assert.deepEqual(mergeNew([{id:'1'}],[]).items,[{id:'1'}])});
+test('only HTTPS Pinterest media hosts are accepted',()=>{assert.ok(allowedMedia('https://i.pinimg.com/a.jpg'));for(const u of ['http://i.pinimg.com/a','https://pinimg.com.evil.test/a','file:///etc/passwd','https://localhost/a'])assert.equal(allowedMedia(u),false);assert.equal(pinId('https://www.pinterest.com/pin/123/'),'123')});
