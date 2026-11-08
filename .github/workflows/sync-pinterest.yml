@@ -1,0 +1,51 @@
+name: Pinterest 동기화
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: organize-pinterest-sync
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: 새 핀 수집 (실패하면 기존 사이트 보존)
+        run: node scripts/sync-pinterest.cjs --ci
+      - run: npm test
+      - name: 배포 파일 생성
+        run: node scripts/publish.cjs --build-only
+        env:
+          PAGES_OUTPUT: exports/pages
+      - name: Git에 새 핀과 배포 파일 보관
+        shell: bash
+        run: |
+          git clone --depth 1 --branch gh-pages https://github.com/hnjnkm/organize.git work/pages-push
+          cp -a exports/pages/. work/pages-push/
+          cd work/pages-push
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .
+          if ! git diff --cached --quiet; then
+            git commit -m 'Sync Pinterest references'
+            git push origin gh-pages
+          fi
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: exports/pages
+      - name: 사이트 배포
+        id: deployment
+        uses: actions/deploy-pages@v4

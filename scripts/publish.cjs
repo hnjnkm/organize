@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs');const path=require('node:path');const crypto=require('node:crypto');const {execFileSync}=require('node:child_process');const {mergeNew}=require('./sync-core.cjs');
 const root=path.join(__dirname,'..');
-const target=path.join(root,'work','publish-'+Date.now());fs.mkdirSync(path.dirname(target),{recursive:true});
+const target=process.env.PAGES_OUTPUT?path.resolve(process.env.PAGES_OUTPUT):path.join(root,'work','publish-'+Date.now());fs.mkdirSync(path.dirname(target),{recursive:true});
 function git(args){return execFileSync('git',args,{cwd:target,stdio:'inherit'})}
 execFileSync('git',['clone','--depth','1','--branch','gh-pages','https://github.com/hnjnkm/organize.git',target],{stdio:'inherit'});
 const local=JSON.parse(fs.readFileSync(path.join(root,'data/snapshot.json'),'utf8'));
@@ -25,7 +25,9 @@ for(const name of ['index.html','styles.css','app.js','menus.js']){
  if(name==='app.js')text=text.replace("fetch('/data/snapshot.json')","fetch('./data/snapshot.json')");
  fs.writeFileSync(path.join(target,name),text);
 }
-fs.writeFileSync(path.join(target,'.nojekyll'),'');git(['add','.']);
+fs.writeFileSync(path.join(target,'.nojekyll'),'');
+if(process.argv.includes('--build-only')){fs.rmSync(path.join(target,'.git'),{recursive:true,force:true});console.log('배포 파일 준비 완료');process.exit(0)}
+git(['add','.']);
 const changed=execFileSync('git',['diff','--cached','--name-only'],{cwd:target,encoding:'utf8'}).trim();
 if(!changed){console.log('변경 사항 없음');process.exit(0)}
 git(['-c','user.name=organize sync','-c','user.email=organize-sync@users.noreply.github.com','commit','-m',`Sync Pinterest: ${merged.added} new pins`]);

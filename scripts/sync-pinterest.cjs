@@ -6,6 +6,7 @@ const privateDir=path.join(root,'private');fs.mkdirSync(privateDir,{recursive:tr
 const lock=path.join(privateDir,'sync.lock');
 let lockFd;try{lockFd=fs.openSync(lock,'wx')}catch{throw Error('다른 동기화가 실행 중입니다. 종료된 경우에만 private/sync.lock을 삭제하세요.')}
 let context;
+const ci=process.argv.includes('--ci');
 async function main(){
  if(!fs.existsSync(dataFile)){
   const dest=path.join(root,'work','bootstrap-'+Date.now());fs.mkdirSync(path.dirname(dest),{recursive:true});
@@ -21,10 +22,14 @@ async function main(){
  if(process.argv.includes('--prepare'))return;
  const data=JSON.parse(fs.readFileSync(dataFile,'utf8'));const known=new Set(data.items.map(x=>String(x.id)));
  const {chromium}=require('playwright');
- context=await chromium.launchPersistentContext(path.join(privateDir,'pinterest-chrome'),{channel:'chrome',headless:false,viewport:{width:1440,height:1000}});
+ context=await chromium.launchPersistentContext(path.join(privateDir,'pinterest-chrome'),{...(ci?{}:{channel:'chrome'}),headless:ci,viewport:{width:1440,height:1000}});
  const page=context.pages()[0]||await context.newPage();
- await page.goto('https://www.pinterest.com/hnjnkm_/research-gui/',{waitUntil:'domcontentloaded',timeout:60000});
- if(process.send){process.send({type:'login-ready'});await new Promise(resolve=>process.once('message',resolve));}
+ const boardResponse=await page.goto('https://www.pinterest.com/hnjnkm_/research-gui/',{waitUntil:'domcontentloaded',timeout:60000});
+ if(ci){
+  if(!boardResponse?.ok())throw Error(`Pinterest가 수집을 거부했습니다 (HTTP ${boardResponse?.status()}). 기존 사이트는 유지됩니다.`);
+  await page.waitForSelector('a[href*="/pin/"] img',{timeout:30000});
+ }
+ else if(process.send){process.send({type:'login-ready'});await new Promise(resolve=>process.once('message',resolve));}
  else {const rl=require('node:readline/promises').createInterface({input:process.stdin,output:process.stdout});await rl.question('Chrome에서 보드 로그인 후 Enter: ');rl.close();}
  if(!/^https:\/\/([a-z]+\.)?pinterest\.com\/hnjnkm_\/research-gui\/?(?:[?#]|$)/.test(page.url()))throw Error('대상 보드 페이지가 아닙니다.');
  const found=new Map();let stable=0,rounds=0;
@@ -40,7 +45,7 @@ async function main(){
   if(!allowedMedia(url))throw Error('허용하지 않은 미디어 주소');
   const r=await context.request.get(url,{timeout:60000,maxRedirects:0});if(!r.ok())throw Error(`미디어 HTTP ${r.status()}`);
   const mime=r.headers()['content-type']?.split(';')[0];if(!/^(image\/|video\/mp4)/.test(mime||''))throw Error('미디어 형식 오류');
-  const body=await r.body();if(body.length>50*1024*1024)throw Error('50MB 초과 미디어');return {uri:`data:${mime};base64,${body.toString('base64')}`,mime};
+  const body=await r.body();if(body.length>50*1024*1024)throw Error('50MB 초과 미디어');let optimized={bytes:body,mime};try{optimized=await require('./optimize-media.cjs').optimizeMedia(body,mime)}catch(e){console.log('압축 실패: 원본을 보존합니다. '+e.message.slice(0,120))}return {uri:`data:${optimized.mime};base64,${optimized.bytes.toString('base64')}`,mime:optimized.mime};
  }
  const detail=await context.newPage();
  for(const row of found.values()){
