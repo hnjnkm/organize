@@ -1,0 +1,9 @@
+node_modules/
+data/
+private/
+media/
+exports/
+work/
+*.zip
+*.z[0-9][0-9]
+.DS_Store

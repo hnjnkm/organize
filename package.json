@@ -1,0 +1,12 @@
+{
+  "name": "organize",
+  "version": "0.1.0",
+  "private": true,
+  "description": "기존 organize 스냅샷을 보존한 로컬 리서치 라이브러리",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node server.cjs",
+    "import": "node scripts/import-snapshot.cjs",
+    "test": "node --test"
+  }
+}
